@@ -4,7 +4,7 @@ module LogStashLogger
       def initialize(source, source_type, index, version)
         super()
         @source = source
-        @source_type = source_type
+        @source_type = source_type #"_json"
         @index = index
         @app_version = version
       end
