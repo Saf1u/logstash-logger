@@ -16,13 +16,13 @@ module LogStashLogger
             source: @source,
             sourcetype: @source_type,
             index: @index,
-            app_version: @app_version, #checl 
+            app_version: @app_version, #checl
             event: {
               message: event.remove('message')
               severity: event.remove('severity')
             }
           },
-        end
+        end.to_json
       end
     end
   end
