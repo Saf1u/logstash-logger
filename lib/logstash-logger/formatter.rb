@@ -5,6 +5,7 @@ module LogStashLogger
 		DEFAULT_FORMATTER = :json_lines
 
     autoload :LogStashEvent, 'logstash-logger/formatter/logstash_event'
+    autoload :SplunkMessage, 'logstash-logger/formatter/splunk_message'
     autoload :Json, 'logstash-logger/formatter/json'
     autoload :JsonLines, 'logstash-logger/formatter/json_lines'
     autoload :Cee, 'logstash-logger/formatter/cee'
@@ -34,6 +35,7 @@ module LogStashLogger
       when :json_lines then JsonLines
       when :json then Json
       when :logstash_event then LogStashEvent
+      when :splunk  then SplunkMessage
       when :cee then Cee
       when :cee_syslog then CeeSyslog
       else fail ArgumentError, 'Invalid formatter'

@@ -20,6 +20,7 @@ module LogStashLogger
     autoload :Stderr, 'logstash-logger/device/stderr'
     autoload :Balancer, 'logstash-logger/device/balancer'
     autoload :MultiDelegator, 'logstash-logger/device/multi_delegator'
+    autoload :Splunk, 'logstash-logger/device/splunk'
 
     def self.new(opts)
       opts = opts.dup
@@ -60,6 +61,7 @@ module LogStashLogger
         when :stderr then Stderr
         when :multi_delegator then MultiDelegator
         when :balancer then Balancer
+        when :splunk then Splunk
         else fail ArgumentError, 'Invalid device type'
       end
     end

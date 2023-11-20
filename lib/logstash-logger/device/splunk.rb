@@ -1,8 +1,14 @@
 require 'poseidon'
 require 'net/http'
 
+
 module LogStashLogger
   module Device
+
+    class ClientError< StandardError
+    end
+    class SplunkError< StandardError
+    end
     class Client
       def initialize(uri:,token:)
         @uri = uri
@@ -16,7 +22,18 @@ module LogStashLogger
           'Authorization' =>  "Splunk #{@token}"
         })
         req.body = message
-        response = @client.request(request)
+        response = @client.request(req)
+        process_response(response)
+      end
+
+      def process_response(response)
+        raise ClientError.new("Error status code #{response.code}")  if response.code!='200'
+        return if response.body.length ==0
+        response_hash = JSON.parse(response.body).to_h
+        #resuce this possible parse error should never happen though
+        return unless response_hash.key?("code")
+        return unless response_hash["code"].to_s != '0'
+        raise SplunkError.new(response_hash["text"])
       end
 
       def close
@@ -24,6 +41,7 @@ module LogStashLogger
       end
 
     end
+
     
     class Splunk < Connectable
 
@@ -43,7 +61,7 @@ module LogStashLogger
         protocol = opts[:protocol] || DEFAULT_PROTOCOL
         path = opts[:path] || DEFAULT_PATH
         token = opts[:token] || DEFAULT_AUTH
-        uri = URI.parse(protocol+"://"+host+":"+port+"/"+path)
+        uri = URI.parse(protocol+"://"+host+":"+port + path)
         @client = Client.new(uri:uri,token:token)
       end
 
@@ -54,20 +72,19 @@ module LogStashLogger
       def with_connection
         connect
         yield
-      rescue ::Poseidon::Errors::ChecksumError, Poseidon::Errors::UnableToFetchMetadata => e
+      rescue ClientError => e
         log_error(e)
         log_warning("reconnect/retry")
         sleep backoff if backoff
         reconnect
         retry
-      rescue => e
+      rescue SplunkError => e
         log_error(e)
         log_warning("giving up")
         close(flush: false)
       end
 
       def write_batch(messages, topic = nil)
-        topic ||= @topic
         with_connection do
           @io.send_message(messages.join)
         end

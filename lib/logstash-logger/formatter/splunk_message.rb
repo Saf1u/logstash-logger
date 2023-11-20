@@ -1,16 +1,14 @@
 module LogStashLogger
   module Formatter
     class SplunkMessage < Base
-      def initialize(source, source_type, index, version)
-        super()
-        @source = source
-        @source_type = source_type #"_json"
-        @index = index
-        @app_version = version
+      def initialize(customize_event:nil)
+        @source = "source"
+        @source_type = "source_type" #"_json"
+        @index = "index"
+        @app_version = "version"
       end
       def format_event(event)
-        event.tap do |event|
-          body={
+          {
             time: event.remove('@timestamp'),
             host: event.remove('host'),
             source: @source,
@@ -19,10 +17,11 @@ module LogStashLogger
             event: {
               message: event.remove('message'),
               severity: event.remove('severity'),
-              app_version: @app_version,
-            }
-          },
-        end.to_json
+            },
+          fields: {
+            app_version: @app_version,
+          }
+          }.to_json
       end
     end
   end
