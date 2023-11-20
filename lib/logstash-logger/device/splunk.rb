@@ -10,9 +10,10 @@ module LogStashLogger
     class SplunkError< StandardError
     end
     class Client
-      def initialize(uri:,token:)
+      def initialize(uri:,token:,ssl_enabled:)
         @uri = uri
         @client = Net::HTTP.new(uri.host,uri.port)
+        @client.use_ssl = ssl_enabled
         @token =  token
       end
 
@@ -62,7 +63,8 @@ module LogStashLogger
         path = opts[:path] || DEFAULT_PATH
         token = opts[:token] || DEFAULT_AUTH
         uri = URI.parse(protocol+"://"+host+":"+port + path)
-        @client = Client.new(uri:uri,token:token)
+        ssl_enabled = protocol === DEFAULT_PROTOCOL ? true:false
+        @client = Client.new(uri:uri,token:token,ssl_enabled:ssl_enabled)
       end
 
       def connect
