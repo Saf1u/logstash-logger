@@ -9,6 +9,24 @@ module LogStashLogger
     end
     class SplunkError< StandardError
     end
+
+    class Retry
+      def initialize(max_retries:1)
+        @max_retries = max_retries
+        @current_retry_count = 0
+      end
+      def can_retry?
+        return @current_retry_count < @max_retries_count
+      end
+      def exponential_wait
+        @current_retry_count+=1
+        max_sleep = Float(2**@current_retry_count)
+        sleep rand(0..max_sleep)
+      end
+      def reset_retries
+        @current_retry_count = 0
+      end
+    end
     class Client
       def initialize(uri:,token:,ssl_enabled:)
         @uri = uri
@@ -43,14 +61,14 @@ module LogStashLogger
 
     end
 
-    
+
     class Splunk < Connectable
 
       DEFAULT_HOST = 'localhost'
       DEFAULT_PORT = 8080
       DEFAULT_PATH = ''
       DEFAULT_PROTOCOL = 'https'
-      DEFAULT_BACKOFF = 1
+      DEFAULT_MAX_RETRY = 1
       DEFAULT_AUTH =  ''
 
       attr_accessor :backoff
@@ -65,6 +83,7 @@ module LogStashLogger
         uri = URI.parse(protocol+"://"+host+":"+port + path)
         ssl_enabled = protocol === DEFAULT_PROTOCOL ? true:false
         @client = Client.new(uri:uri,token:token,ssl_enabled:ssl_enabled)
+        @retry =  Retry.new(max_retries: opts[:max_retry] || DEFAULT_MAX_RETRY )
       end
 
       def connect
@@ -72,18 +91,24 @@ module LogStashLogger
       end
 
       def with_connection
-        connect
+        connect unless connected?
         yield
       rescue ClientError => e
         log_error(e)
         log_warning("reconnect/retry")
-        sleep backoff if backoff
+        unless can_retry?
+          @retry.reset_retries
+          raise "max retry reached without succesful communication with server, giving up"
+        end
+        @retry.exponential_wait
         reconnect
         retry
       rescue SplunkError => e
         log_error(e)
         log_warning("giving up")
         close(flush: false)
+      rescue => e
+        log_error(e)
       end
 
       def write_batch(messages, topic = nil)
